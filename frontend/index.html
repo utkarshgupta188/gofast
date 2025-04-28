@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P2P File & Text Sharing</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>P2P File & Text Sharing</h1>
+  <div id="room-container">
+    <button id="create-room">Create Room</button>
+    <input type="text" id="room-code" placeholder="Enter 6-digit Code">
+    <button id="join-room">Join Room</button>
+  </div>
+  <div id="chat-container" style="display: none;">
+    <textarea id="messages" readonly></textarea>
+    <input type="text" id="message-input" placeholder="Type a message">
+    <button id="send-message">Send</button>
+    <input type="file" id="file-input">
+  </div>
+  <script src="main.js"></script>
+</body>
+</html>
