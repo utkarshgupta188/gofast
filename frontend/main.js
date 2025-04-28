@@ -5,6 +5,8 @@ let peerConnection;
 let dataChannel;
 
 // UI Elements
+const roomInfo = document.getElementById('room-info');
+const roomIdSpan = document.getElementById('room-id');
 const roomContainer = document.getElementById('room-container');
 const chatContainer = document.getElementById('chat-container');
 const roomCodeInput = document.getElementById('room-code');
@@ -24,7 +26,8 @@ ws.onmessage = async (event) => {
   const data = JSON.parse(event.data);
 
   if (data.type === 'code') {
-    alert(`Your room code is: ${data.code}`);
+    roomIdSpan.textContent = data.code;
+    roomInfo.classList.remove('hidden');
   } else if (data.type === 'peer-joined') {
     setupPeerConnection();
     roomContainer.style.display = 'none';
@@ -75,9 +78,13 @@ function setupDataChannel() {
 
   sendMessageBtn.addEventListener('click', () => {
     const message = messageInput.value;
-    dataChannel.send(message);
-    messagesTextarea.value += `You: ${message}\n`;
-    messageInput.value = '';
+    if (dataChannel.readyState === 'open') {
+      dataChannel.send(message);
+      messagesTextarea.value += `You: ${message}\n`;
+      messageInput.value = '';
+    } else {
+      alert('Connection is not ready');
+    }
   });
 
   fileInput.addEventListener('change', (event) => {
@@ -85,8 +92,12 @@ function setupDataChannel() {
     const reader = new FileReader();
 
     reader.onload = () => {
-      dataChannel.send(reader.result);
-      messagesTextarea.value += `You sent a file: ${file.name}\n`;
+      if (dataChannel.readyState === 'open') {
+        dataChannel.send(reader.result);
+        messagesTextarea.value += `You sent a file: ${file.name}\n`;
+      } else {
+        alert('Connection is not ready');
+      }
     };
 
     reader.readAsArrayBuffer(file);
