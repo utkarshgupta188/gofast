@@ -1,4 +1,4 @@
-const ws = new WebSocket('ws://localhost:3000'); // WebSocket server URL
+const ws = new WebSocket('wss://gofast.onrender.com'); // WebSocket server URL
 const client = new WebTorrent(); // WebTorrent client
 
 // UI Elements
