@@ -1,4 +1,4 @@
-const signalingServerUrl = `wss://gofast.onrender.com`;
+const signalingServerUrl = `wss://gofast.onrender.com`; // Use your backend WebSocket URL
 const ws = new WebSocket(signalingServerUrl);
 
 let peerConnection;
@@ -47,7 +47,11 @@ joinRoomBtn.addEventListener('click', () => {
 });
 
 function setupPeerConnection() {
-  peerConnection = new RTCPeerConnection();
+  peerConnection = new RTCPeerConnection({
+    iceServers: [
+      { urls: "stun:stun.l.google.com:19302" } // Free Google STUN server
+    ]
+  });
 
   peerConnection.ondatachannel = (event) => {
     dataChannel = event.channel;
