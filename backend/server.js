@@ -8,14 +8,13 @@ const PORT = process.env.PORT || 3000;
 app.use(express.static('frontend'));
 
 const server = app.listen(PORT, () => {
-  console.log(`Server is running at http://localhost:${PORT}`);
+  console.log(`Server running at http://localhost:${PORT}`);
 });
 
-// WebSocket signaling server
+// WebSocket server
 const wss = new WebSocketServer({ server });
 
-// Map to store 6-digit codes and WebSocket connections
-const codeToSocketMap = new Map();
+const rooms = new Map(); // Map of room codes to WebSocket clients
 
 wss.on('connection', (ws) => {
   console.log('New client connected');
@@ -24,47 +23,45 @@ wss.on('connection', (ws) => {
     const data = JSON.parse(message);
 
     if (data.type === 'create') {
-      // Generate a unique 6-digit code
-      let code;
+      // Generate a unique 6-digit room code
+      let roomCode;
       do {
-        code = Math.floor(100000 + Math.random() * 900000).toString();
-      } while (codeToSocketMap.has(code));
+        roomCode = Math.floor(100000 + Math.random() * 900000).toString();
+      } while (rooms.has(roomCode));
 
-      // Map the code to the client's WebSocket
-      codeToSocketMap.set(code, ws);
-
-      // Send the code back to the client
-      ws.send(JSON.stringify({ type: 'code', code }));
-      console.log(`Room created with code: ${code}`);
+      rooms.set(roomCode, [ws]); // Add the creator to the room
+      ws.send(JSON.stringify({ type: 'room-created', roomCode }));
+      console.log(`Room created: ${roomCode}`);
     } else if (data.type === 'join') {
-      const { code } = data;
+      const { roomCode } = data;
 
-      if (codeToSocketMap.has(code)) {
-        const hostSocket = codeToSocketMap.get(code);
+      if (rooms.has(roomCode)) {
+        rooms.get(roomCode).push(ws); // Add the peer to the room
+        ws.send(JSON.stringify({ type: 'room-joined', roomCode }));
 
-        // Link the two clients
-        hostSocket.send(JSON.stringify({ type: 'peer-joined' }));
-        ws.send(JSON.stringify({ type: 'peer-joined' }));
-
-        // Relay messages between the two clients
-        hostSocket.on('message', (hostMessage) => {
-          ws.send(hostMessage);
-        });
-
-        ws.on('message', (peerMessage) => {
-          hostSocket.send(peerMessage);
-        });
-
-        // Remove the code from the map after the connection is established
-        codeToSocketMap.delete(code);
-        console.log(`Room with code ${code} is now connected`);
+        // Notify all clients in the room
+        rooms.get(roomCode).forEach((client) =>
+          client.send(JSON.stringify({ type: 'peer-joined', roomCode }))
+        );
+        console.log(`Peer joined room: ${roomCode}`);
       } else {
-        ws.send(JSON.stringify({ type: 'error', message: 'Invalid code' }));
+        ws.send(JSON.stringify({ type: 'error', message: 'Invalid room code' }));
       }
     }
   });
 
   ws.on('close', () => {
     console.log('Client disconnected');
+    // Remove the client from all rooms
+    for (const [roomCode, clients] of rooms.entries()) {
+      const index = clients.indexOf(ws);
+      if (index !== -1) {
+        clients.splice(index, 1);
+        if (clients.length === 0) {
+          rooms.delete(roomCode); // Delete the room if empty
+        }
+        break;
+      }
+    }
   });
 });
