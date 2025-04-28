@@ -1,4 +1,4 @@
-const signalingServerUrl = `wss://gofast.onrender.com`; // Use your backend WebSocket URL
+const signalingServerUrl = `wss://gofast.onrender.com`; // Backend WebSocket URL
 const ws = new WebSocket(signalingServerUrl);
 
 let peerConnection;
@@ -32,6 +32,12 @@ ws.onmessage = async (event) => {
     setupPeerConnection();
     roomContainer.style.display = 'none';
     chatContainer.style.display = 'block';
+  } else if (data.type === 'offer') {
+    await handleOffer(data.offer);
+  } else if (data.type === 'answer') {
+    await handleAnswer(data.answer);
+  } else if (data.type === 'iceCandidate') {
+    await handleIceCandidate(data.candidate);
   } else if (data.type === 'error') {
     alert(data.message);
   }
@@ -56,10 +62,38 @@ function setupPeerConnection() {
     ]
   });
 
+  // Handle ICE candidates
+  peerConnection.onicecandidate = (event) => {
+    if (event.candidate) {
+      ws.send(JSON.stringify({ type: 'iceCandidate', candidate: event.candidate }));
+    }
+  };
+
+  // Handle Data Channel
   peerConnection.ondatachannel = (event) => {
     dataChannel = event.channel;
     setupDataChannel();
   };
+
+  // Create Data Channel
+  dataChannel = peerConnection.createDataChannel('chat');
+  setupDataChannel();
+
+  // Create Offer
+  peerConnection.createOffer()
+    .then((offer) => {
+      peerConnection.setLocalDescription(offer);
+      ws.send(JSON.stringify({ type: 'offer', offer }));
+    })
+    .catch((error) => console.error('Error creating offer:', error));
+}
+
+async function handleOffer(offer) {
+  peerConnection = new RTCPeerConnection({
+    iceServers: [
+      { urls: "stun:stun.l.google.com:19302" }
+    ]
+  });
 
   peerConnection.onicecandidate = (event) => {
     if (event.candidate) {
@@ -67,13 +101,46 @@ function setupPeerConnection() {
     }
   };
 
-  dataChannel = peerConnection.createDataChannel('chat');
-  setupDataChannel();
+  peerConnection.ondatachannel = (event) => {
+    dataChannel = event.channel;
+    setupDataChannel();
+  };
+
+  await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+
+  const answer = await peerConnection.createAnswer();
+  await peerConnection.setLocalDescription(answer);
+
+  ws.send(JSON.stringify({ type: 'answer', answer }));
+}
+
+async function handleAnswer(answer) {
+  await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+}
+
+async function handleIceCandidate(candidate) {
+  try {
+    await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+  } catch (error) {
+    console.error('Error adding received ICE candidate:', error);
+  }
 }
 
 function setupDataChannel() {
+  dataChannel.onopen = () => {
+    console.log('Data channel opened');
+  };
+
   dataChannel.onmessage = (event) => {
-    messagesTextarea.value += `Peer: ${event.data}\n`;
+    const data = event.data;
+    if (typeof data === 'string') {
+      messagesTextarea.value += `Peer: ${data}\n`;
+    } else {
+      // Handle received file
+      const blob = new Blob([data]);
+      const url = URL.createObjectURL(blob);
+      messagesTextarea.value += `Peer sent a file: <a href="${url}" download="file">Download</a>\n`;
+    }
   };
 
   sendMessageBtn.addEventListener('click', () => {
