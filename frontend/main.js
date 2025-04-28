@@ -28,8 +28,6 @@ createRoomBtn.addEventListener('click', () => {
 ws.onmessage = async (event) => {
   const data = JSON.parse(event.data);
 
-  console.log('WebSocket message received:', data);
-
   if (data.type === 'code') {
     roomIdSpan.textContent = data.code;
     roomInfo.classList.remove('hidden');
@@ -38,16 +36,12 @@ ws.onmessage = async (event) => {
     roomContainer.style.display = 'none';
     chatContainer.style.display = 'block';
   } else if (data.type === 'offer') {
-    console.log('Received offer:', data.offer);
     await handleOffer(data.offer);
   } else if (data.type === 'answer') {
-    console.log('Received answer:', data.answer);
     await handleAnswer(data.answer);
   } else if (data.type === 'iceCandidate') {
-    console.log('Received ICE candidate:', data.candidate);
     await handleIceCandidate(data.candidate);
   } else if (data.type === 'error') {
-    console.error('Signaling error:', data.message);
     alert(data.message);
   }
 };
@@ -71,37 +65,24 @@ function setupPeerConnection() {
     ]
   });
 
-  // Handle ICE candidates
   peerConnection.onicecandidate = (event) => {
     if (event.candidate) {
-      console.log('Sending ICE candidate:', event.candidate);
       ws.send(JSON.stringify({ type: 'iceCandidate', candidate: event.candidate }));
     }
   };
 
-  peerConnection.oniceconnectionstatechange = () => {
-    console.log('ICE Connection State:', peerConnection.iceConnectionState);
-  };
-
-  // Handle Data Channel
   peerConnection.ondatachannel = (event) => {
-    console.log('Data channel received:', event.channel);
     dataChannel = event.channel;
     setupDataChannel();
   };
 
-  // Create Data Channel
   dataChannel = peerConnection.createDataChannel('chat');
   setupDataChannel();
 
-  // Create Offer
-  peerConnection.createOffer()
-    .then((offer) => {
-      console.log('Created offer:', offer);
-      peerConnection.setLocalDescription(offer);
-      ws.send(JSON.stringify({ type: 'offer', offer }));
-    })
-    .catch((error) => console.error('Error creating offer:', error));
+  peerConnection.createOffer().then((offer) => {
+    peerConnection.setLocalDescription(offer);
+    ws.send(JSON.stringify({ type: 'offer', offer }));
+  });
 }
 
 async function handleOffer(offer) {
@@ -113,61 +94,47 @@ async function handleOffer(offer) {
 
   peerConnection.onicecandidate = (event) => {
     if (event.candidate) {
-      console.log('Sending ICE candidate:', event.candidate);
       ws.send(JSON.stringify({ type: 'iceCandidate', candidate: event.candidate }));
     }
   };
 
   peerConnection.ondatachannel = (event) => {
-    console.log('Data channel received:', event.channel);
     dataChannel = event.channel;
     setupDataChannel();
   };
 
-  console.log('Setting remote description with offer:', offer);
   await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
 
   const answer = await peerConnection.createAnswer();
-  console.log('Created answer:', answer);
   await peerConnection.setLocalDescription(answer);
 
   ws.send(JSON.stringify({ type: 'answer', answer }));
 }
 
 async function handleAnswer(answer) {
-  console.log('Setting remote description with answer:', answer);
   await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
 }
 
 async function handleIceCandidate(candidate) {
-  try {
-    console.log('Adding ICE candidate:', candidate);
-    await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-  } catch (error) {
-    console.error('Error adding ICE candidate:', error);
-  }
+  await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
 }
 
 function setupDataChannel() {
   dataChannel.onopen = () => {
-    console.log('Data channel opened');
-    sendMessageBtn.disabled = false; // Enable Send button
+    sendMessageBtn.disabled = false;
     messagesTextarea.value += "Connection established. You can now send messages.\n";
   };
 
-  dataChannel.onclose = () => {
-    console.log('Data channel closed');
-    sendMessageBtn.disabled = true; // Disable Send button
-    messagesTextarea.value += "Connection closed. You cannot send messages.\n";
-  };
-
   dataChannel.onmessage = (event) => {
-    const data = event.data;
-    if (typeof data === 'string') {
-      messagesTextarea.value += `Peer: ${data}\n`;
-    } else {
-      // Handle received file
-      const blob = new Blob([data]);
+    try {
+      const data = JSON.parse(event.data);
+      if (data.type === 'text') {
+        messagesTextarea.value += `Peer: ${data.content}\n`;
+      } else if (data.type === 'file') {
+        console.log('File metadata received:', data);
+      }
+    } catch (e) {
+      const blob = new Blob([event.data]);
       const url = URL.createObjectURL(blob);
       messagesTextarea.value += `Peer sent a file: <a href="${url}" download="file">Download</a>\n`;
     }
@@ -175,13 +142,13 @@ function setupDataChannel() {
 
   sendMessageBtn.addEventListener('click', () => {
     const message = messageInput.value;
-    console.log(`DataChannel State: ${dataChannel.readyState}`); // Log state
     if (dataChannel.readyState === 'open') {
-      dataChannel.send(message);
+      const messagePayload = { type: 'text', content: message };
+      dataChannel.send(JSON.stringify(messagePayload));
       messagesTextarea.value += `You: ${message}\n`;
       messageInput.value = '';
     } else {
-      alert('Connection is not ready. Please wait.');
+      alert('Connection is not ready.');
     }
   });
 
@@ -190,12 +157,18 @@ function setupDataChannel() {
     const reader = new FileReader();
 
     reader.onload = () => {
-      console.log(`DataChannel State: ${dataChannel.readyState}`); // Log state
       if (dataChannel.readyState === 'open') {
+        const fileMetadata = {
+          type: 'file',
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+        };
+        dataChannel.send(JSON.stringify(fileMetadata));
         dataChannel.send(reader.result);
         messagesTextarea.value += `You sent a file: ${file.name}\n`;
       } else {
-        alert('Connection is not ready. Please wait.');
+        alert('Connection is not ready.');
       }
     };
 
