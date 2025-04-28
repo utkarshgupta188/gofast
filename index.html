@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P2P File Sharing with WebTorrent</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="room-info" class="hidden">
+    Room Code: <span id="room-code"></span>
+  </div>
+  <h1>P2P File Sharing & Messaging</h1>
+  <div id="room-container">
+    <button id="create-room">Create Room</button>
+    <input type="text" id="room-code-input" placeholder="Enter 6-digit Code">
+    <button id="join-room">Join Room</button>
+  </div>
+  <div id="chat-container" style="display: none;">
+    <textarea id="messages" readonly></textarea>
+    <input type="text" id="message-input" placeholder="Type a message">
+    <button id="send-message">Send</button>
+    <input type="file" id="file-input">
+    <h3>Magnet Links for Files</h3>
+    <div id="magnet-links"></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/webtorrent/webtorrent.min.js"></script>
+  <script src="main.js"></script>
+</body>
+  </html>
