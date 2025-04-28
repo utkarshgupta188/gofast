@@ -1,4 +1,4 @@
-const signalingServerUrl = `ws://${window.location.host}`;
+const signalingServerUrl = `ws://gofast.onrender.com`;
 const ws = new WebSocket(signalingServerUrl);
 
 let peerConnection;
