@@ -1,0 +1,22 @@
+{
+  "name": "p2p-file-text-sharing",
+  "version": "1.0.0",
+  "description": "A simple peer-to-peer file and text-sharing web app using WebRTC and WebSocket.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "ws": "^8.13.0"
+  },
+  "keywords": [
+    "p2p",
+    "webrtc",
+    "file-sharing",
+    "text-sharing",
+    "websocket"
+  ],
+  "author": "utkarshgupta188",
+  "license": "MIT"
+}
