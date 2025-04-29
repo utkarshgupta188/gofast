@@ -42,6 +42,9 @@ ws.onmessage = (event) => {
     chatContainer.style.display = 'block';
   } else if (data.type === 'peer-joined') {
     messagesTextarea.value += 'A peer has joined the room.\n';
+  } else if (data.type === 'message') {
+    // Display received message
+    messagesTextarea.value += `Peer: ${data.content}\n`;
   }
 };
 
@@ -55,9 +58,10 @@ fileInput.addEventListener('change', (event) => {
       link.href = magnetLink;
       link.textContent = `Download ${file.name}`;
       magnetLinksContainer.appendChild(link);
-      magnetLinksContainer.appendChild(document.createElement('br>');
+      magnetLinksContainer.appendChild(document.createElement('br'));
 
       // Broadcast magnet link to peers
+      ws.send(JSON.stringify({ type: 'magnet', magnetLink }));
       messagesTextarea.value += `You shared a file: ${file.name}\n`;
     });
   }
@@ -68,7 +72,7 @@ sendMessageBtn.addEventListener('click', () => {
   const message = messageInput.value.trim();
   if (message) {
     messagesTextarea.value += `You: ${message}\n`;
+    ws.send(JSON.stringify({ type: 'message', content: message }));
     messageInput.value = '';
-    // TODO: Implement a messaging protocol using WebTorrent or WebSocket
   }
 });
